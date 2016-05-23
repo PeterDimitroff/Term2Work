@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 typedef struct msg_s
 {
     char *date;
@@ -12,32 +13,49 @@ typedef struct msg_s
     struct msg_s *next;
 } msg;
 
-msg *Menu(msg *head);
-void memfree(msg *head);
-msg *readTextFile(msg *head);
-char *getline(msg *head);
-char *readline(FILE *fp, char endC, msg *head);
-void printMsgList(msg *head);
-void writeBin(msg *head);
-void errexit(msg *head);
-void writeMsg(FILE *fp, msg *node, msg *head);
+typedef struct usr_s
+{
+    char *name;
+    int symbols;
+    int messages;
+    int happy;
+    int sad;
+    double mood;
+    struct usr_s *next;
+} usr;
+msg *mHead = NULL;
+usr *uHead = NULL;
+
+void Menu();
+void memfree();
+void readTextFile();
+char *getline();
+char *readline(FILE *fp, char endC);
+void printMsgList();
+void writeBin();
+FILE *writeMsg(FILE *fp, msg *node);
+void scanUsers();
+void errexit();
+void setmood(usr *node, char *text);
+void printUserMood();
+void mostMessages();
+void mostSymbols();
 
 void main()
 {
-    msg *head = NULL;
     for(;;)
-        head = Menu(head);
-    memfree(head);
+        Menu();
+    memfree();
 }
 
-void errexit(msg *head)
+void errexit()
 {
     printf("Error.\n");
-    memfree(head);
+    memfree();
     exit(1);
 }
 
-char *getline(msg *head)
+char *getline()
 {
     char *string;
     size_t len = 5;
@@ -45,7 +63,7 @@ char *getline(msg *head)
     char c;
 
     if(!( string = (char*) malloc(5) ))
-        errexit(head);
+        errexit();
 
     while((c = getchar()) != '\n')
     {
@@ -57,57 +75,112 @@ char *getline(msg *head)
     return string;
 }
 
-msg *Menu(msg *head)
+void Menu()
 {
     char choice = ' ';
-    printf("\n***\nEnter:\n1 - to read the file.\n");
-    printf("2 - to create binary file.\n3 - to print all messages.\n");
-    printf("4 - to exit.\n");
+    printf("\n***\nEnter:\n1 - to read the file.\n2 - to create binary file.\n");
+    printf("3 - to print all messages.\n4 - to read history.db and scan users.\n");
+    printf("5 - to see a user's mood.\n6 - to see the user with most messages.\n");
+    printf("7 - to see the user with most symbols.\n8 - to exit.\n");
     do
     {
         choice = getchar();
         fflush(stdin);
     }
-    while(choice < '1' || choice > '4' );
+    while(choice < '1' || choice > '8' );
 
     switch(choice)
     {
     case '1':
-        memfree(head);
-        head = readTextFile(head);
+        memfree();
+        readTextFile();
         break;
     case '2':
-        writeBin(head);
+        writeBin();
         break;
     case '3':
-        printMsgList(head);
+        printMsgList();
         break;
     case '4':
-        memfree(head);
+        scanUsers();
+        break;
+    case '5':
+        printUserMood();
+        break;
+    case '6':
+        mostMessages();
+        break;
+    case '7':
+        mostSymbols();
+        break;
+    case '8':
+        memfree();
         exit(0);
     }
-
-    return head;
 }
 
-void printMsgList(msg *head)
+void printMsgList()
 {
+    msg *node = mHead;
     printf("\n***\n");
-    if(!head)
+    if(!node)
     {
         printf("No messages found in memory.\n");
         system("PAUSE");
         return NULL;
     }
-    while(head != NULL)
+    while(node)
     {
-        printf("[%s] [%s.%s] %s:%s\n", head->date, head->client, head->protocol, head->user, head->text);
-        head = head->next;
+        printf("[%s] [%s.%s] %s:%s\n", node->date, node->client, node->protocol, node->user, node->text);
+        node = node->next;
     }
         system("PAUSE");
 }
 
-msg *readTextFile(msg *head)
+void printUserMood()
+{
+    usr *node = uHead;
+    char * searchedName;
+    if(!uHead)
+    {
+        printf("***No users found in memory! Scan history.db first!***\n");
+        system("PAUSE");
+        return NULL;
+    }
+    printf("Enter user to search for:\n");
+    searchedName = getline();
+    while(node && strcmp(node->name, searchedName))
+    {
+        node = node->next;
+    }
+    if(!node)
+    {
+        printf("***No such user found!***\n");
+        system("PAUSE");
+        return NULL;
+    }
+    if(!node->mood)
+    {
+        if(node->happy)
+            printf("Mood - HAPPY!. %s has used %d happy faces and NO sad faces.\n", node->name, node->happy);
+        if(node->sad)
+            printf("Mood - SAD!. %s has used %d sad faces and NO happy faces.\n", node->name, node->sad);
+        if(!node->happy && !node->sad)
+            printf("No sad or happy faces used at all.\n");
+    }
+    else
+    {
+        if(node->mood > 1.5)
+            printf("Mood - happy! (%g)\n", node->mood);
+        if(node->mood < 0.5)
+            printf("Mood - sad. (%g)\n", node->mood);
+        if(node->mood <= 1.5 && node->mood >= 0.5)
+            printf("Mood - neutral. (%g)\n", node->mood);
+    }
+
+}
+
+void readTextFile()
 {
     msg *node = NULL;
     FILE *fp;
@@ -117,37 +190,41 @@ msg *readTextFile(msg *head)
     char *protocol;
     char *user;
     char *text;
-    memfree(head);
+    memfree();
     printf("Enter file name:\n");
-    fname = getline(head);
+    fname = getline();
     if( !(fp = fopen(fname, "r")) )
-        errexit(head);
+        {
+            printf("***File not found!***\n");
+            system("PAUSE");
+            return NULL;
+        }
     free(fname);
     while(1)
     {
         if(fseek(fp, 1, SEEK_CUR))
-            errexit(head);
+            errexit();
 
-        date = readline(fp, ']', head);
+        date = readline(fp, ']');
         if(!date)
             break;
 
         if(fseek(fp, 2, SEEK_CUR))
-            errexit(head);
+            errexit();
 
-        client = readline(fp, '.', head);
-        protocol = readline(fp, ']', head);
+        client = readline(fp, '.');
+        protocol = readline(fp, ']');
         if(fseek(fp, 1, SEEK_CUR))
-            errexit(head);
-        user = readline(fp, ':', head);
+            errexit();
+        user = readline(fp, ':');
         if(fseek(fp, 1, SEEK_CUR))
-            errexit(head);
-        text = readline(fp, '\n', head);
+            errexit();
+        text = readline(fp, '\n');
 
-        if(head == NULL)
+        if(!mHead)
         {
             node = (msg*) malloc(sizeof(msg));
-            head = node;
+            mHead = node;
         }
         else
         {
@@ -164,19 +241,16 @@ msg *readTextFile(msg *head)
     }
     fclose(fp);
     fp = NULL;
-    return head;
 }
 
-char *readline(FILE *fp, char endC, msg *head)
+char *readline(FILE *fp, char endC)
 {
     char *string;
     size_t len = 10;
     int cnt = 0;
     char c;
     if(!( string = (char*) malloc(len) ))
-    {
-        errexit(head);
-    }
+        errexit();
 
     while((c = fgetc(fp)) != endC)
     {
@@ -195,12 +269,12 @@ char *readline(FILE *fp, char endC, msg *head)
     return string;
 }
 
-void writeBin(msg *head)
+void writeBin()
 {
     FILE *fp;
-    msg *node = head;
+    msg *node = mHead;
 
-    if(!head)
+    if(!mHead)
     {
         printf("No messages found in memory.\n");
         system("PAUSE");
@@ -208,63 +282,245 @@ void writeBin(msg *head)
     }
 
     if((fp = fopen("history.db", "wb"))==NULL)
-        errexit(head);
+        errexit();
 
     while(node)
     {
-        writeMsg(fp, node, head);
+        fp = writeMsg(fp, node);
         node = node->next;
     }
     fclose(fp);
     printf("\nhistory.db created successfuly!");
 }
 
-void writeMsg(FILE *fp, msg *node, msg *head)
+FILE *writeMsg(FILE *fp, msg *node)
 {
     size_t len;
 
     len = strlen(node->date);
     if(fwrite(&len, sizeof(size_t), 1, fp)!=1)
-        errexit(head);
+        errexit();
     if(fwrite(node->date, len, 1, fp)!=1)
-        errexit(head);
+        errexit();
 
     len = strlen(node->client);
     if(fwrite(&len, sizeof(size_t), 1, fp)!=1)
-        errexit(head);
+        errexit();
     if(fwrite(node->client, len, 1, fp)!=1)
-        errexit(head);
+        errexit();
 
     len = strlen(node->protocol);
     if(fwrite(&len, sizeof(size_t), 1, fp)!=1)
-        errexit(head);
+        errexit();
     if(fwrite(node->protocol, len, 1, fp)!=1)
-        errexit(head);
+        errexit();
 
     len = strlen(node->user);
     if(fwrite(&len, sizeof(size_t), 1, fp)!=1)
-        errexit(head);
+        errexit();
     if(fwrite(node->user, len, 1, fp)!=1)
-        errexit(head);
+        errexit();
 
     len = strlen(node->text);
     if(fwrite(&len, sizeof(size_t), 1, fp)!=1)
-        errexit(head);
+        errexit();
     if(fwrite(node->text, len, 1, fp)!=1)
-        errexit(head);
+        errexit();
+    return fp;
 }
 
-void memfree(msg *head)
+void scanUsers()        ///history.db FORMAT: |int|string|int|string|int|string|int|string|int|string|
 {
-    msg *p = head;
-    while(head != NULL)
+    FILE *fp;
+    size_t len;
+    usr *node;
+    char *name;
+    char *text;
+    memfree();
+    if(!(fp = fopen("history.db", "rb")))
+        {
+            printf("Can't open history.db.\n");
+            return NULL;
+        }
+    while(1)
     {
-        head = head->next;
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            {
+                if(ferror(fp))
+                    errexit();
+                break;
+            }
+        if(fseek(fp, len, SEEK_CUR))
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(fseek(fp, len, SEEK_CUR))
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(fseek(fp,len, SEEK_CUR))
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(name = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(name, len, 1, fp)!=1)
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(text = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(text, len, 1, fp)!=1)
+            errexit();
+
+        if(!uHead)
+        {
+            node = (usr *) malloc(sizeof(usr));
+            uHead = node;
+            uHead->next = NULL;
+            node->name = name;
+            node->sad = node->happy = node->mood = node->messages = node->symbols = 0;
+        }
+        else
+        {
+            node = uHead;
+            while(node && strcmp(node->name, name))
+                node = node->next;
+            if(!node)
+            {
+                node = (usr *) malloc(sizeof(usr));
+                node->next = uHead;
+                uHead = node;
+                node->name = name;
+                node->sad = node->happy = node->mood = node->messages = node->symbols = 0;
+            }
+        }
+        node->messages++;
+        node->symbols += strlen(text);
+        setmood(node, text);
+    }
+    fclose(fp);
+
+    node = uHead;
+    while(node)
+    {
+        if(node->happy && node->sad)
+            node->mood = (double) node->happy/node->sad;
+        node = node->next;
+    }
+}
+
+void setmood(usr *node, char *text)
+{
+    int i;
+    int fl = 0;
+    for(i = 0; i < strlen(text); i++)
+    {
+        switch(text[i])
+        {
+            case ':':
+                fl = 1;
+                break;
+            case '\'':
+                if(fl == 1)
+                    fl = 3;
+                else
+                    fl = 0;
+                break;
+            case '=':
+                fl = 2;
+                break;
+            case ')' || 'd' || 'D' || 'p' || 'P':
+                if(fl == 1)
+                    node->happy++;
+                fl = 0;
+                break;
+            case ']':
+                if(fl == 2)
+                    node->happy++;
+                fl = 0;
+                break;
+            case '(':
+                if(fl == 1 || fl == 2 || fl == 3)
+                    node->sad++;
+                fl = 0;
+                break;
+        }
+    }
+}
+
+void mostMessages()
+{
+    usr *node = uHead;
+    int maxMsg = 0;
+    char *maxUser;
+    if(!uHead)
+    {
+        printf("***No users found in memory! Scan history.db first!***\n");
+        system("PAUSE");
+        return NULL;
+    }
+    while(node)
+    {
+        if(maxMsg < node->messages)
+        {
+            maxMsg = node->messages;
+            maxUser = node->name;
+        }
+        node = node->next;
+    }
+    printf("%s - %d messages!\n", maxUser, maxMsg);
+}
+
+void mostSymbols()
+{
+    usr *node = uHead;
+    int maxSymbols = 0;
+    char *maxUser;
+    if(!uHead)
+    {
+        printf("***No users found in memory! Scan history.db first!***\n");
+        system("PAUSE");
+        return NULL;
+    }
+    while(node)
+    {
+        if(maxSymbols < node->symbols)
+        {
+            maxSymbols = node->symbols;
+            maxUser = node->name;
+        }
+        node = node->next;
+    }
+    printf("%s - %d symbols!\n", maxUser, maxSymbols);
+}
+
+void memfree()
+{
+    msg *p = mHead;
+    usr *q = uHead;
+    while(mHead != NULL)
+    {
+        mHead = mHead->next;
+        free(p->date);
         free(p->client);
         free(p->protocol);
         free(p->user);
         free(p->text);
         free(p);
-        p = head;
+        p = mHead;
     }
+    mHead = NULL;
+    while(uHead != NULL)
+    {
+        uHead = uHead->next;
+        free(q->name);
+        free(q);
+        q = uHead;
+    }
+    uHead = NULL;
 }
