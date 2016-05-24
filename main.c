@@ -177,7 +177,7 @@ void printUserMood()
         if(node->mood <= 1.5 && node->mood >= 0.5)
             printf("Mood - neutral. (%g)\n", node->mood);
     }
-
+    system("PAUSE");
 }
 
 void readTextFile()
@@ -404,14 +404,6 @@ void scanUsers()        ///history.db FORMAT: |int|string|int|string|int|string|
         setmood(node, text);
     }
     fclose(fp);
-
-    node = uHead;
-    while(node)
-    {
-        if(node->happy && node->sad)
-            node->mood = (double) node->happy/node->sad;
-        node = node->next;
-    }
 }
 
 void setmood(usr *node, char *text)
@@ -434,7 +426,27 @@ void setmood(usr *node, char *text)
             case '=':
                 fl = 2;
                 break;
-            case ')' || 'd' || 'D' || 'p' || 'P':
+            case ')':
+                if(fl == 1)
+                    node->happy++;
+                fl = 0;
+                break;
+                case 'd':
+                if(fl == 1)
+                    node->happy++;
+                fl = 0;
+                break;
+            case 'D':
+                if(fl == 1)
+                    node->happy++;
+                fl = 0;
+                break;
+            case 'P':
+                if(fl == 1)
+                    node->happy++;
+                fl = 0;
+                break;
+            case 'p':
                 if(fl == 1)
                     node->happy++;
                 fl = 0;
@@ -449,8 +461,13 @@ void setmood(usr *node, char *text)
                     node->sad++;
                 fl = 0;
                 break;
+            default:
+                fl = 0;
+                break;
         }
     }
+    if(node->happy && node->sad)
+        node->mood = (double) node->happy/node->sad;
 }
 
 void mostMessages()
