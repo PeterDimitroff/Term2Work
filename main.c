@@ -40,6 +40,8 @@ void setmood(usr *node, char *text);
 void printUserMood();
 void mostMessages();
 void mostSymbols();
+void deleteUser();
+FILE *compareWriting(FILE *tmp, char *date, char *client, char *protocol, char *name, char *text, char *searchedName);
 
 void main()
 {
@@ -78,16 +80,16 @@ char *getline()
 void Menu()
 {
     char choice = ' ';
-    printf("\n***\nEnter:\n1 - to read the file.\n2 - to create binary file.\n");
-    printf("3 - to print all messages.\n4 - to read history.db and scan users.\n");
-    printf("5 - to see a user's mood.\n6 - to see the user with most messages.\n");
-    printf("7 - to see the user with most symbols.\n8 - to exit.\n");
+    printf("\n***\nEnter:\n1 - to read the file.\n2 - to create binary file.\n3 - to print all messages.\n");
+    printf("4 - to read history.db and scan users.\n5 - to see a user's mood.\n");
+    printf("6 - to see the user with most messages.\n7 - to see the user with most symbols.\n");
+    printf("8 - to delete a user's messages from history.db.\n9 - to exit.\n");
     do
     {
         choice = getchar();
         fflush(stdin);
     }
-    while(choice < '1' || choice > '8' );
+    while(choice < '1' || choice > '9' );
 
     switch(choice)
     {
@@ -114,6 +116,9 @@ void Menu()
         mostSymbols();
         break;
     case '8':
+        deleteUser();
+        break;
+    case '9':
         memfree();
         exit(0);
     }
@@ -338,10 +343,10 @@ void scanUsers()        ///history.db FORMAT: |int|string|int|string|int|string|
     char *text;
     memfree();
     if(!(fp = fopen("history.db", "rb")))
-        {
-            printf("Can't open history.db.\n");
-            return NULL;
-        }
+    {
+        printf("Can't open history.db.\n");
+        return NULL;
+    }
     while(1)
     {
         if(fread(&len, sizeof(size_t), 1, fp)!=1)
@@ -514,6 +519,116 @@ void mostSymbols()
         node = node->next;
     }
     printf("%s - %d symbols!\n", maxUser, maxSymbols);
+}
+
+void deleteUser()
+{
+    FILE *fp;
+    FILE *tmp;
+    char *searchedName;
+    char *date;
+    char *client;
+    char *protocol;
+    char *name;
+    char *text;
+
+    if(!(fp = fopen("history.db", "rb")))
+    {
+        printf("Can't open history.db.\n");
+        return NULL;
+    }
+    printf("User to delete - ");
+    searchedName = getline();
+    if((tmp = fopen("tmp.db", "wb"))==NULL)
+        errexit();
+    while(1)
+    {
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            {
+                if(ferror(fp))
+                    errexit();
+                break;
+            }
+        if(!(date = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(date, len, 1, fp)!=1)
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(client = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(client, len, 1, fp)!=1)
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(protocol = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(protocol, len, 1, fp)!=1)
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(name = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(name, len, 1, fp)!=1)
+            errexit();
+
+        if(fread(&len, sizeof(size_t), 1, fp)!=1)
+            errexit();
+        if(!(text = (char*) calloc(1, len+1)))
+           errexit();
+        if(fread(text, len, 1, fp)!=1)
+            errexit();
+
+        tmp = compareWriting(tmp, date, client, protocol, name, text, searchedName);
+
+        free(date);
+        free(client);
+        free(protocol);
+        free(name);
+        free(text);
+    }
+    free(searchedName);
+    fclose(fp);
+    fclose(tmp);
+    remove("history.db");
+    rename("tmp.db", "history.db");
+}
+
+FILE *compareWriting(FILE *tmp, char *date, char *client, char *protocol, char *name, char *text, char *searchedName)
+{
+    size_t len;
+    if(strcmp(name, searchedName))
+    {
+        len = strlen(date);
+        if(fwrite(&len, sizeof(size_t), 1, tmp)!=1)
+            errexit();
+        if(fwrite(date, strlen(date), 1, tmp)!=1)
+            errexit();
+        len = strlen(client);
+        if(fwrite(&len, sizeof(size_t), 1, tmp)!=1)
+            errexit();
+        if(fwrite(client, strlen(client), 1, tmp)!=1)
+            errexit();
+        len = strlen(protocol);
+        if(fwrite(&len, sizeof(size_t), 1, tmp)!=1)
+            errexit();
+        if(fwrite(protocol, strlen(protocol), 1, tmp)!=1)
+            errexit();
+        len = strlen(name);
+        if(fwrite(&len, sizeof(size_t), 1, tmp)!=1)
+            errexit();
+        if(fwrite(name, strlen(name), 1, tmp)!=1)
+            errexit();
+        len = strlen(text);
+        if(fwrite(&len, sizeof(size_t), 1, tmp)!=1)
+            errexit();
+        if(fwrite(text, strlen(text), 1, tmp)!=1)
+            errexit();
+    }
+    return tmp;
 }
 
 void memfree()
