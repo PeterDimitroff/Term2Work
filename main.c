@@ -1,7 +1,7 @@
-#include <stdio.h>              ///[DD.MM.YYYY HH:MM:SS] [<Chat Client>.<protocol>]<UserName>: <Message>
+///[DD.MM.YYYY HH:MM:SS] [<Chat Client>.<protocol>]<UserName>: <Message>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 typedef struct msg_s
 {
@@ -23,6 +23,7 @@ typedef struct usr_s
     double mood;
     struct usr_s *next;
 } usr;
+
 msg *mHead = NULL;
 usr *uHead = NULL;
 
@@ -45,8 +46,13 @@ FILE *compareWriting(FILE *tmp, char *date, char *client, char *protocol, char *
 
 void main()
 {
-    for(;;)
+    int i;
+    for(i=0;;i++)
+    {
+        if(i)
+            system("PAUSE");
         Menu();
+    }
     memfree();
 }
 
@@ -74,12 +80,14 @@ char *getline()
             string[cnt++] = c;
     }
     string[cnt] = '\0';
+
     return string;
 }
 
 void Menu()
 {
     char choice = ' ';
+    system("cls");
     printf("\n***\nEnter:\n1 - to read the file.\n2 - to create binary file.\n3 - to print all messages.\n");
     printf("4 - to read history.db and scan users.\n5 - to see a user's mood.\n");
     printf("6 - to see the user with most messages.\n7 - to see the user with most symbols.\n");
@@ -131,7 +139,6 @@ void printMsgList()
     if(!node)
     {
         printf("No messages found in memory.\n");
-        system("PAUSE");
         return NULL;
     }
     while(node)
@@ -139,7 +146,6 @@ void printMsgList()
         printf("[%s] [%s.%s] %s:%s\n", node->date, node->client, node->protocol, node->user, node->text);
         node = node->next;
     }
-        system("PAUSE");
 }
 
 void printUserMood()
@@ -149,7 +155,6 @@ void printUserMood()
     if(!uHead)
     {
         printf("***No users found in memory! Scan history.db first!***\n");
-        system("PAUSE");
         return NULL;
     }
     printf("Enter user to search for:\n");
@@ -161,7 +166,6 @@ void printUserMood()
     if(!node)
     {
         printf("***No such user found!***\n");
-        system("PAUSE");
         return NULL;
     }
     if(!node->mood)
@@ -182,7 +186,6 @@ void printUserMood()
         if(node->mood <= 1.5 && node->mood >= 0.5)
             printf("Mood - neutral. (%g)\n", node->mood);
     }
-    system("PAUSE");
 }
 
 void readTextFile()
@@ -195,16 +198,15 @@ void readTextFile()
     char *protocol;
     char *user;
     char *text;
+
     memfree();
     printf("Enter file name:\n");
     fname = getline();
     if( !(fp = fopen(fname, "r")) )
-        {
-            printf("***File not found!***\n");
-            system("PAUSE");
-            return NULL;
-        }
-    free(fname);
+    {
+        printf("***File not found!***\n");
+        return NULL;
+    }
     while(1)
     {
         if(fseek(fp, 1, SEEK_CUR))
@@ -246,6 +248,8 @@ void readTextFile()
     }
     fclose(fp);
     fp = NULL;
+    printf("%s successfully read.\n", fname);
+    free(fname);
 }
 
 char *readline(FILE *fp, char endC)
@@ -282,7 +286,6 @@ void writeBin()
     if(!mHead)
     {
         printf("No messages found in memory.\n");
-        system("PAUSE");
         return NULL;
     }
 
@@ -295,7 +298,7 @@ void writeBin()
         node = node->next;
     }
     fclose(fp);
-    printf("\nhistory.db created successfuly!");
+    printf("\nhistory.db created successfuly!\n");
 }
 
 FILE *writeMsg(FILE *fp, msg *node)
@@ -334,13 +337,14 @@ FILE *writeMsg(FILE *fp, msg *node)
     return fp;
 }
 
-void scanUsers()        ///history.db FORMAT: |int|string|int|string|int|string|int|string|int|string|
+void scanUsers()    ///reads history.db FORMAT: |int|string|int|string|int|string|int|string|int|string|
 {
     FILE *fp;
     size_t len;
     usr *node;
     char *name;
     char *text;
+
     memfree();
     if(!(fp = fopen("history.db", "rb")))
     {
@@ -409,9 +413,10 @@ void scanUsers()        ///history.db FORMAT: |int|string|int|string|int|string|
         setmood(node, text);
     }
     fclose(fp);
+    printf("history.db scanned successfully.\n");
 }
 
-void setmood(usr *node, char *text)
+void setmood(usr *node, char *text) ///reads a message and adjusts the mood.
 {
     int i;
     int fl = 0;
@@ -483,7 +488,6 @@ void mostMessages()
     if(!uHead)
     {
         printf("***No users found in memory! Scan history.db first!***\n");
-        system("PAUSE");
         return NULL;
     }
     while(node)
@@ -506,7 +510,6 @@ void mostSymbols()
     if(!uHead)
     {
         printf("***No users found in memory! Scan history.db first!***\n");
-        system("PAUSE");
         return NULL;
     }
     while(node)
@@ -521,7 +524,7 @@ void mostSymbols()
     printf("%s - %d symbols!\n", maxUser, maxSymbols);
 }
 
-void deleteUser()
+void deleteUser()   ///from history.db
 {
     FILE *fp;
     FILE *tmp;
@@ -531,6 +534,7 @@ void deleteUser()
     char *protocol;
     char *name;
     char *text;
+    size_t len;
 
     if(!(fp = fopen("history.db", "rb")))
     {
@@ -590,11 +594,13 @@ void deleteUser()
         free(name);
         free(text);
     }
-    free(searchedName);
     fclose(fp);
     fclose(tmp);
     remove("history.db");
     rename("tmp.db", "history.db");
+    printf("%s's messages successfully deleted.\n");
+    free(searchedName);
+    scanUsers();
 }
 
 FILE *compareWriting(FILE *tmp, char *date, char *client, char *protocol, char *name, char *text, char *searchedName)
@@ -635,6 +641,7 @@ void memfree()
 {
     msg *p = mHead;
     usr *q = uHead;
+
     while(mHead != NULL)
     {
         mHead = mHead->next;
@@ -647,6 +654,7 @@ void memfree()
         p = mHead;
     }
     mHead = NULL;
+
     while(uHead != NULL)
     {
         uHead = uHead->next;
