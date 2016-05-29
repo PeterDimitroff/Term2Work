@@ -265,8 +265,19 @@ char *readline(FILE *fp, char endC)
     {
         if(c == EOF)
         {
-            free(string);
-            return NULL;
+            if(!cnt)
+            {
+                free(string);
+                return NULL;
+            }
+            else
+            {
+                if(cnt>=len-1)
+                    string = (char *) realloc(string, (len += 10));
+                string[cnt++] = c;
+                string[cnt] = '\0';
+                return string;
+            }
         }
 
         if(cnt>=len-1)
